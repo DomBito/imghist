@@ -1,3 +1,5 @@
+#!/usr/bin/python3
+import sys
 import numpy as np
 import cv2
 import os.path
@@ -48,9 +50,12 @@ def makeimg(hist,size):
         m = np.sum(freq,1)
         diff = (n - m).astype(int)
         order = np.argsort(freq)
-        freq[0][order[0,-np.abs(diff[0]):]] += np.sign(diff[0])*np.ones(np.abs(diff[0]))
-        freq[1][order[1,-np.abs(diff[1]):]] += np.sign(diff[1])*np.ones(np.abs(diff[1]))
-        freq[2][order[2,-np.abs(diff[2]):]] += np.sign(diff[2])*np.ones(np.abs(diff[2]))
+        if np.abs(diff[0]) > 0:
+            freq[0][order[0,-np.abs(diff[0]):]] += np.sign(diff[0])*np.ones(np.abs(diff[0]))
+        if np.abs(diff[1]) > 0:
+            freq[1][order[1,-np.abs(diff[1]):]] += np.sign(diff[1])*np.ones(np.abs(diff[1]))
+        if np.abs(diff[2]) > 0:
+            freq[2][order[2,-np.abs(diff[2]):]] += np.sign(diff[2])*np.ones(np.abs(diff[2]))
         freq = freq.astype(int)
         img = [[],[],[]]
         for i in range(256):
@@ -77,16 +82,25 @@ parser.add_argument('-d', '--draw_image',
                     dest='draw', default=False, const=True,
                     action='store_const',
                     help='Make an image whose histogram matches your histogram file (accuracy depends on the size of the image).')
+parser.add_argument('-q', '--quiet',
+                    dest='isquiet', default=False, const=True,
+                    action='store_const',
+                    help="Don't print messages.")
 parser.add_argument('-s', '--size',
                     dest='size', default=600,
                     type=int,
                     help='Size of the image when the option -d is set.')
 args = parser.parse_args()
 
-if os.path.isfile(args.histfile):
-    if os.path.isfile(args.imgfile):
+if args.histfile[-4:] == ".npz":
+    histfile = args.histfile
+else:
+    histfile = args.histfile + ".npz"
+
+if os.path.isfile(histfile):
+    if os.path.isfile(args.imgfile) and not args.isquiet:
         print("Adding information to the pre-existing histogram!")
-    hist = np.load(args.histfile)
+    hist = np.load(histfile)
     hist = [hist['arr_0'],hist['arr_1']]
 else:
     hist = [0,np.zeros([3,256])]
@@ -95,8 +109,8 @@ if not args.imgfile:
     img = None
 else:
     img = cv2.imread(args.imgfile)
-    hist=add2hist(img,hist)
-    np.savez("hist.npz",hist[0],hist[1])
+    hist = add2hist(img,hist)
+    np.savez(histfile,hist[0],hist[1])
 
 if args.draw:
     makeimg(hist,args.size)
